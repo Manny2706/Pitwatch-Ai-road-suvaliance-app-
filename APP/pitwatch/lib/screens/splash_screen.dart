@@ -1,0 +1,175 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:pitwatch/models/pothole.dart';
+import 'package:pitwatch/screens/auth/signup_page.dart';
+import 'package:pitwatch/screens/home/main_screen.dart';
+import 'dart:async';
+import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pitwatch/services/token_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pitwatch/providers/pothole_provider.dart';
+import 'package:pitwatch/services/report_service.dart';
+
+class SplashScreen extends ConsumerStatefulWidget {
+  const SplashScreen({super.key});
+
+  @override
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends ConsumerState<SplashScreen> {
+  bool _isLoading = false;
+  @override
+  void initState() {
+    super.initState();
+    // request location permission once, then navigate after splash delay
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _maybeRequestLocationPermissionOnce();
+      if (!mounted) return;
+      // small visual delay before starting network work
+      Timer(const Duration(seconds: 2), () async {
+        if (!mounted) return;
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          // Debug: dump all shared preference entries to console
+          try {
+            final keys = prefs.getKeys();
+            debugPrint('--- SharedPreferences dump start ---');
+            for (final k in keys) {
+              debugPrint('$k: ${prefs.get(k)}');
+            }
+            debugPrint('--- SharedPreferences dump end ---');
+          } catch (e) {
+            debugPrint('Failed to dump SharedPreferences: $e');
+          }
+          final token = prefs.getString('access_token');
+          final refresh = prefs.getString('refresh_token');
+          // Start token auto-refresh if a refresh token exists.
+          if (refresh != null && refresh.trim().isNotEmpty) {
+            TokenService.startAutoRefresh();
+          }
+          // If we have a token, prefetch reports and counts and store them in provider.
+          if (token != null && token.trim().isNotEmpty) {
+            setState(() {
+              _isLoading = true;
+            });
+            try {
+              // Fetch reports directly from the service and populate the
+              // minimal provider created in `pothole_provider.dart`.
+              final res = await ReportService.fetchReports(
+                page: 1,
+                pageSize: 1000,
+              );
+              if (res['ok'] == true && res['data'] is Map<String, dynamic>) {
+                try {
+                  final data = res['data'] as Map<String, dynamic>;
+                  final results = data['results'] as List<dynamic>? ?? [];
+                  final parsed = <dynamic>[];
+                  for (final item in results) {
+                    if (item is Map<String, dynamic>) parsed.add(item);
+                  }
+
+                  final notifier = ref.read(potholeProvider.notifier);
+                  // Convert maps to PotholeDetection where possible, else skip.
+                  final detections = <dynamic>[];
+                  for (final m in parsed) {
+                    try {
+                      detections.add(PotholeDetection.fromJson(m));
+                    } catch (_) {}
+                  }
+                  if (detections.isNotEmpty) {
+                    // Replace provider state with fetched list
+                    notifier.state = List<PotholeDetection>.from(detections);
+                    notifier.totalCount = notifier.state.length;
+                    await notifier.saveToPrefs();
+                  }
+                } catch (e) {
+                  debugPrint('Parse fetched reports failed: $e');
+                }
+              }
+            } catch (e) {
+              debugPrint('Prefetch reports/counts failed: $e');
+            } finally {
+              if (!mounted) return;
+              setState(() {
+                _isLoading = false;
+              });
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (_) => const MainScreen()),
+              );
+            }
+          } else {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => const SignupPage()),
+            );
+          }
+        } catch (e) {
+          // fallback to signup on any error
+          if (!mounted) return;
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const SignupPage()),
+          );
+        }
+      });
+    });
+  }
+
+  Future<void> _maybeRequestLocationPermissionOnce() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final asked = prefs.getBool('asked_location_permission') ?? false;
+      if (asked) return;
+
+      // Check current permission
+      LocationPermission permission = await Geolocator.checkPermission();
+
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      } else if (permission == LocationPermission.deniedForever) {
+        // Can't request programmatically; the user must enable from settings.
+        // We still mark as asked to avoid repeated prompts.
+      }
+
+      await prefs.setBool('asked_location_permission', true);
+    } catch (e) {
+      // ignore errors; don't block navigation
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment(-0.96, -0.27), // approx 168.33deg
+            end: Alignment(0.94, 0.33),
+            colors: [Color(0xFF172033), Color(0xFF1E356C)],
+            stops: [0.0, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Logo
+                Image.asset(
+                  'assets/images/logo.png',
+                  width: 92.w,
+                  height: 92.w,
+                  fit: BoxFit.contain,
+                ),
+                SizedBox(height: 24.h),
+                if (_isLoading) const CircularProgressIndicator(),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

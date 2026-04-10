@@ -1,0 +1,3 @@
+pothole_low
+pothole_medium
+pothole_high
