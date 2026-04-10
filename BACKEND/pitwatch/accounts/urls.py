@@ -1,0 +1,25 @@
+from django.urls import path
+
+from .views import (
+    AdminLoginView,
+    AdminLogoutView,
+    AdminMeView,
+    AdminTokenRefreshView,
+    ProfileView,
+    SignupView,
+    UserLoginView,
+    UserLogoutView,
+    UserRefreshTokenView,
+)
+
+urlpatterns = [
+    path("signup/", SignupView.as_view(), name="signup"),
+    path("login/", UserLoginView.as_view(), name="login"),
+    path("token/refresh/", UserRefreshTokenView.as_view(), name="token_refresh"),
+    path("logout/", UserLogoutView.as_view(), name="logout"),
+    path("me/", ProfileView.as_view(), name="profile"),
+    path("admin/login/", AdminLoginView.as_view(), name="admin-login"),
+    path("admin/token/refresh/", AdminTokenRefreshView.as_view(), name="admin-token-refresh"),
+    path("admin/logout/", AdminLogoutView.as_view(), name="admin-logout"),
+    path("admin/me/", AdminMeView.as_view(), name="admin-me"),
+]

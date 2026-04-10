@@ -1,0 +1,22 @@
+services:
+  web:
+    build: .
+    working_dir: /app/pitwatch
+    command: sh -c "python manage.py migrate && gunicorn pitwatch.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120"
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  worker:
+    build: .
+    working_dir: /app/pitwatch
+    command: celery -A pitwatch worker -l info --without-gossip --without-mingle --without-heartbeat
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    restart: unless-stopped
