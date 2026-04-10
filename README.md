@@ -39,6 +39,7 @@ Pitwatch-Ai-road-suvaliance-app- is an AI-assisted road surveillance platform fo
     - [ML](#ml)
     - [Dashboard](#dashboard)
   - [Notes](#notes)
+  - [Demo Access](#demo-access)
   - [Contributing](#contributing)
 
 ## Project Overview
@@ -267,6 +268,14 @@ docker compose up --build
 - The backend uses PostgreSQL, Redis, Cloudinary, and email delivery integrations, so the related services must be configured before production use.
 - The frontend expects a valid backend API base URL and a stored access token for protected routes.
 - The live map uses OpenStreetMap geocoding and Leaflet rendering for nearby pothole exploration.
+
+## Demo Access
+
+Use the hosted admin dashboard for quick product walkthroughs:
+
+- URL: https://pit-watch.vercel.app/
+- Username: admin
+- Password: pass@123
 
 ## Contributing
 
