@@ -6,7 +6,7 @@ Pitwatch-Ai-road-suvaliance-app- is an AI-assisted road surveillance platform fo
 
 | Area | What it does |
 | --- | --- |
-| Flutter app | Field and mobile experience for users |
+| Flutter app | Field and mobile experience for users, including driver drowsiness monitoring |
 | Django backend | Auth, reports, dashboard summary, ML orchestration |
 | React dashboard | Admin analytics, report management, live map |
 | ML assets | Detection models and inference helpers |
@@ -25,6 +25,8 @@ Pitwatch-Ai-road-suvaliance-app- is an AI-assisted road surveillance platform fo
     - [Backend API Flow](#backend-api-flow)
   - [Frontend Modules](#frontend-modules)
   - [Flutter App](#flutter-app)
+  - [Drowsiness Monitoring (Flutter)](#drowsiness-monitoring-flutter)
+    - [Emergency Escalation in Drowsiness Flow](#emergency-escalation-in-drowsiness-flow)
   - [ML Artifacts](#ml-artifacts)
   - [Tech Stack](#tech-stack)
   - [Environment Setup](#environment-setup)
@@ -58,6 +60,7 @@ The system is organized as a monorepo with three major parts:
 - Dashboard summary metrics and seven-day trend data.
 - ML-assisted pothole detection and async detection job tracking.
 - Nearby pothole lookup on a live map using geocoding and map markers.
+- Real-time driver drowsiness monitoring with on-device face and eye-state checks.
 - Email-driven report workflows for emergency and pothole notifications.
 
 ## Architecture
@@ -152,6 +155,29 @@ The React dashboard currently provides these routes:
 ## Flutter App
 
 The Flutter application lives in `APP/pitwatch` and contains the mobile-facing screens, providers, services, and widgets used for the road-safety workflow.
+
+## Drowsiness Monitoring (Flutter)
+
+The mobile app includes a drowsiness safety flow designed for drivers:
+
+- Uses the front camera with ML Kit face detection to monitor eye-open probability in near real time.
+- Triggers a drowsiness alert when both eyes remain below threshold for a short sustained window.
+- Plays a looping alarm sound and starts an on-screen SOS countdown.
+- Automatically triggers emergency escalation if the user does not respond in time.
+
+### Emergency Escalation in Drowsiness Flow
+
+When drowsiness is confirmed and the countdown is not cancelled:
+
+1. The app places an SOS phone call from the alert screen.
+2. The app posts emergency context (location and report details) to `POST /api/v1/reports/emergency/`.
+3. The backend handles emergency email/report processing for responder notification.
+4. The alert screen closes after escalation is triggered.
+
+Implementation entry points:
+
+- `APP/pitwatch/lib/screens/drowsiness/eye_monitoring_screen.dart`
+- `APP/pitwatch/lib/screens/drowsiness/drowsiness_alert_screen.dart`
 
 ## ML Artifacts
 
